@@ -1,0 +1,83 @@
+package com.sushma.codetest.service;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+
+import com.sushma.codetest.entity.Employee;
+import com.sushma.codetest.payload.EmployeeTaxDetails;
+import com.sushma.codetest.repository.EmployeeRepository;
+
+public class EmployeeService {
+	
+	
+	    private EmployeeRepository employeeRepository;
+
+	    @Autowired
+	    public void EmployeeServiceImpl(EmployeeRepository employeeRepository) {
+	        this.employeeRepository = employeeRepository;
+	    }
+
+	    public void createEmployee(Employee employee) {
+	        employeeRepository.save(employee);
+	    }
+	    
+	    public List<EmployeeTaxDetails> getEmployeeTaxDetails() {
+	        LocalDate currentYearStart = LocalDate.now().withMonth(4).withDayOfMonth(1);
+	        LocalDate currentYearEnd = LocalDate.now().plusYears(1).withMonth(3).withDayOfMonth(31);
+	        List<Employee> employees = employeeRepository.findAllByDojAfter(currentYearStart);
+
+	        return employees.stream()
+	                .map(employee -> calculateEmployeeTaxDetails(employee, currentYearStart, currentYearEnd))
+	                .collect(Collectors.toList());
+	    }
+
+	    private EmployeeTaxDetails calculateEmployeeTaxDetails(Employee employee, LocalDate currentYearStart, LocalDate currentYearEnd) {
+	        BigDecimal yearlySalary = calculateYearlySalary(employee, currentYearStart, currentYearEnd);
+	        BigDecimal taxAmount = calculateTaxAmount(yearlySalary);
+	        BigDecimal cessAmount = calculateCessAmount(yearlySalary);
+	        
+	        return new EmployeeTaxDetails(
+	        );
+	    }
+
+	    private BigDecimal calculateYearlySalary(Employee employee, LocalDate currentYearStart, LocalDate currentYearEnd) {
+	        LocalDate employeeJoinDate = employee.getDoj();
+	        LocalDate endDate = employeeJoinDate.isAfter(currentYearEnd) ? currentYearEnd : employeeJoinDate;
+	        long monthsWorked = ChronoUnit.MONTHS.between(employeeJoinDate, endDate) + 1;
+	        BigDecimal monthlySalary = employee.getSalary();
+	        BigDecimal totalSalary = monthlySalary.multiply(BigDecimal.valueOf(monthsWorked));
+
+	        return totalSalary;
+	    }
+	    
+	    private BigDecimal calculateTaxAmount(BigDecimal yearlySalary) {
+	        if (yearlySalary.compareTo(BigDecimal.valueOf(250000)) <= 0) {
+	            return BigDecimal.ZERO;
+	        } else if (yearlySalary.compareTo(BigDecimal.valueOf(500000)) <= 0) {
+	            return yearlySalary.subtract(BigDecimal.valueOf(250000)).multiply(BigDecimal.valueOf(0.05));
+	        } else if (yearlySalary.compareTo(BigDecimal.valueOf(1000000)) <= 0) {
+	            BigDecimal taxAmount1 = BigDecimal.valueOf(250000).multiply(BigDecimal.valueOf(0.05));
+	            BigDecimal taxAmount2 = yearlySalary.subtract(BigDecimal.valueOf(500000)).multiply(BigDecimal.valueOf(0.1));
+	            return taxAmount1.add(taxAmount2);
+	        } else {
+	            BigDecimal taxAmount1 = BigDecimal.valueOf(250000).multiply(BigDecimal.valueOf(0.05));
+	            BigDecimal taxAmount2 = BigDecimal.valueOf(500000).multiply(BigDecimal.valueOf(0.1));
+	            BigDecimal taxAmount3 = yearlySalary.subtract(BigDecimal.valueOf(1000000)).multiply(BigDecimal.valueOf(0.2));
+	            return taxAmount1.add(taxAmount2).add(taxAmount3);
+	        }
+	    }
+	    
+	    private BigDecimal calculateCessAmount(BigDecimal yearlySalary) {
+	        if (yearlySalary.compareTo(BigDecimal.valueOf(2500000)) > 0) {
+	            BigDecimal cessAmount = yearlySalary.subtract(BigDecimal.valueOf(2500000)).multiply(BigDecimal.valueOf(0.02));
+	            return cessAmount;
+	        } else {
+	            return BigDecimal.ZERO;
+	        }
+	    }
+}
